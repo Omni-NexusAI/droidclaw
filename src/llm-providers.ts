@@ -319,7 +319,7 @@ class OpenAIProvider implements LLMProvider {
     const openaiMessages = this.toOpenAIMessages(messages);
     const response = await this.client.chat.completions.create({
       model: this.model,
-      response_format: { type: "json_object" },
+      // response_format removed for LMStudio compatibility,
       messages: openaiMessages,
     });
     return parseJsonResponse(response.choices[0].message.content ?? "{}");
@@ -329,7 +329,7 @@ class OpenAIProvider implements LLMProvider {
     const openaiMessages = this.toOpenAIMessages(messages);
     const stream = await this.client.chat.completions.create({
       model: this.model,
-      response_format: { type: "json_object" },
+      // response_format removed for LMStudio compatibility,
       messages: openaiMessages,
       stream: true,
     });
@@ -635,10 +635,18 @@ export function parseJsonResponse(text: string): ActionDecision {
         }
       }
     }
-  }
-  if (!decision) {
-    console.log(`Warning: Could not parse LLM response: ${text.slice(0, 200)}`);
-    return { action: "wait", reason: "Failed to parse response, waiting" };
+  // Validate action name - reject invalid/unknown actions
+  const VALID_ACTIONS = new Set([
+    "tap","type","enter","swipe","home","back","wait","done",
+    "longpress","screenshot","launch","clear","clipboard_get","clipboard_set",
+    "paste","shell","submit_message","copy_visible_text","wait_for_content",
+    "find_and_tap","compose_email","open_url","switch_app","notifications",
+    "pull_file","push_file","keyevent","open_settings"
+  ]);
+  if (!decision || !decision.action || !VALID_ACTIONS.has(decision.action)) {
+    const actionVal = decision?.action;
+    console.log(`Warning: Invalid or missing action "${actionVal}" from LLM response: ${text.slice(0, 200)}`);
+    return { action: "wait", reason: `Invalid action "${actionVal}", waiting` };
   }
   decision.coordinates = sanitizeCoordinates(decision.coordinates);
   return decision;
