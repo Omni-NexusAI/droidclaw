@@ -247,7 +247,7 @@ export async function runAgent(goal: string, maxSteps?: number): Promise<{ succe
 
           // Context-aware recovery hints based on what actions are failing
           const failingTypes = new Set(
-            recentActions.slice(-stuckCount).map((a) => a.split("(")[0])
+            recentActions.slice(-stuckCount).filter(a => a).map((a) => a.split("(")[0])
           );
 
           let hint = `\nWARNING: You have been stuck for ${stuckCount} steps. The screen is NOT changing.`;
@@ -288,7 +288,7 @@ export async function runAgent(goal: string, maxSteps?: number): Promise<{ succe
         diffContext +=
           `\nREPETITION_ALERT: You have attempted "${topAction}" ${topCount} times in recent steps. ` +
           `This action is clearly NOT working — do NOT attempt it again.`;
-        if (topAction.includes("tap") || topAction.includes("longpress")) {
+        if (topAction && (topAction.includes("tap") || topAction.includes("longpress"))) {
           diffContext +=
             ` ALTERNATIVES: (1) If you were copying text, the copy likely already succeeded — move on to the next step. ` +
             `(2) Use "clipboard_set" with the text from SCREEN_CONTEXT to set clipboard directly. ` +
@@ -303,7 +303,7 @@ export async function runAgent(goal: string, maxSteps?: number): Promise<{ succe
       const navigationActions = new Set(["swipe", "scroll", "back", "home", "wait"]);
       const navCount = recentActions
         .slice(-5)
-        .filter((a) => navigationActions.has(a.split("(")[0])).length;
+        .filter((a) => a && navigationActions.has(a.split("(")[0])).length;
       if (navCount >= 4) {
         diffContext +=
           `\nDRIFT_WARNING: Your last ${navCount} actions were all navigation/waiting (swipe, back, wait, screenshot) with no direct interaction. ` +
@@ -321,7 +321,7 @@ export async function runAgent(goal: string, maxSteps?: number): Promise<{ succe
     const shouldCaptureVision =
       Config.VISION_MODE === "always" ||
       (Config.VISION_MODE === "fallback" && elements.length === 0) ||
-      isStuckVision;
+      (Config.VISION_MODE !== "off" && isStuckVision);
 
     if (shouldCaptureVision) {
       screenshotBase64 = captureScreenshotBase64();
